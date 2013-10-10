@@ -7,7 +7,7 @@ A Leiningen plugin for [garden] lib that automatically compiles garden files to 
 Add lein-garden to plugins section in `project.clj`:
 
 ```clojure
-:plugins [[lein-garden "0.1.0-SNAPSHOT"]]
+:plugins [[org.clojars.nbeloglazov/lein-garden "0.1.0-SNAPSHOT"]]
 ```
 
 Add garden config to `project.clj`:
