@@ -1,26 +1,73 @@
 # garden
 
-A Leiningen plugin to do many wonderful things.
+A Leiningen plugin for [garden] lib that automatically compiles garden files to css.
 
 ## Usage
 
-FIXME: Use this for user-level plugins:
+Add lein-garden to plugins section in `project.clj`:
 
-Put `[garden "0.1.0-SNAPSHOT"]` into the `:plugins` vector of your
-`:user` profile, or if you are on Leiningen 1.x do `lein plugin install
-garden 0.1.0-SNAPSHOT`.
+```clojure
+:plugins [[lein-garden "0.1.0-SNAPSHOT"]]
+```
 
-FIXME: Use this for project-level plugins:
+Add garden config to `project.clj`:
 
-Put `[garden "0.1.0-SNAPSHOT"]` into the `:plugins` vector of your project.clj.
+```clojure
+:garden {:source-path "src/garden"
+           :output-path "resources/css"}
+```
 
-FIXME: and add an example usage that actually makes sense:
+## File format
 
-    $ lein garden
+Garden files are usual clojure files (*.clj). Plugin reads all expressions from clj files, evaluates them, retains vectors and garden.types.CSSAtRule values and compiles them to css.
+
+## Example:
+
+simple.clj
+```clojure
+[:body {:font-size "16px"}]
+
+[:h1 :h2 {:font-weight "none"}]
+
+[:h1 [:a {:text-decoration "none"}]]
+
+[:h1 :h2 [:a {:text-decoration "none"}]]
+
+[:h1 :h2 {:font-weight "normal"}
+  [:strong :b {:font-weight "bold"}]]
+
+[:a
+  {:font-weight 'normal
+   :text-decoration 'none}
+  [:&:hover
+    {:font-weight 'bold
+     :text-decoration 'underline}]]
+```
+
+complex.clj
+```clojure
+(require '[garden.color :as color :refer [rgb]]
+         '[garden.units :refer [px]]
+         '[garden.stylesheet :refer [at-media]])
+
+(def font-color-active (rgb 0 0 0))
+
+(def font-color-inactive (color/lighten font-color-active 50))
+
+[:body :p
+  {:color font-color-active}
+
+  [:.inactive
+    {:color font-color-inactive}]]
+
+(at-media {:min-width (px 768) :max-width (px 979)}
+          [:container {:width (px 960)}])
+```
+
+Check [examples](https://github.com/nbeloglazov/lein-garden/tree/master/examples) project.
 
 ## License
 
-Copyright © 2013 FIXME
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
