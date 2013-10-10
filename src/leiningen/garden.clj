@@ -6,6 +6,8 @@
             [clojure.tools.reader :as r]
             [clojure.tools.reader.reader-types :as rt]
             [garden.core :as gc]
+            [garden.stylesheet :refer [at-media]]
+            [garden.units :refer [px]]
             garden.types
             [clojure.string :as string]))
 
@@ -21,12 +23,14 @@
   (.format date-format (java.util.Date.)))
 
 (defmacro with-temp-ns [& body]
-  (let [body (cons '(clojure.core/refer 'clojure.core)
-                     body)]
+  (let [refers (concat '[(clojure.core/refer 'clojure.core)
+                         (clojure.core/refer 'leiningen.garden)]
+                       body)]
    `(let [~'base-ns (ns-name *ns*)]
       (try
         (in-ns 'temp-ns#)
-        ~@(map (fn [exp] `(eval '~exp)) body)
+        ~@(map (fn [exp] `(eval '~exp)) refers)
+        ~@body
         (finally
           (let [~'cur-ns (ns-name *ns*)]
             (in-ns  ~'base-ns)
@@ -36,22 +40,31 @@
               (remove-ns ~'cur-ns))
             (remove-ns 'temp-ns#)))))))
 
-(defn- cssable-from-reader [reader]
-  (loop [css []]
-    (if-let [exp (r/read reader false nil)]
-      (let [obj (eval exp)]
-        (if (cssable? obj)
-          (recur (conj css obj))
-          (recur css)))
-      css)))
+(def ^:dynamic *current-file* nil)
 
-(defn- cssable-from-file [file]
+(defn- cssable-from-reader [reader]
+  (try
+    (loop [css []]
+      (if-let [exp (r/read reader false nil)]
+        (let [obj (eval exp)]
+          (if (cssable? obj)
+            (recur (conj css obj))
+            (recur css)))
+        css))
+    (catch Exception e
+      (println "Error on line" (rt/get-line-number reader)))))
+
+(defn cssable-from-file [file]
   (-> file
       fs/file
       io/input-stream
       rt/input-stream-push-back-reader
       rt/indexing-push-back-reader
       cssable-from-reader))
+
+(defn- cssable-from-file-in-temp-ns [file]
+  (binding [*current-file* file]
+    (with-temp-ns (leiningen.garden/cssable-from-file leiningen.garden/*current-file*))))
 
 (defn- path-relative-to [file dir]
   (let [dir-path (fs/absolute-path dir)
@@ -66,10 +79,11 @@
 (defn- render-single-file [src-dir out-dir file]
   (println (time-now) "compiling" (fs/base-name file))
   (let [out-file (fs/file out-dir (path-relative-to file src-dir))
-        rules (cssable-from-file file)]
-    (fs/mkdirs (fs/parent out-file))
-    (gc/css {:output-to (change-extension out-file ".css")}
-            rules))
+        rules (cssable-from-file-in-temp-ns file)]
+    (when rules
+     (fs/mkdirs (fs/parent out-file))
+     (gc/css {:output-to (change-extension out-file ".css")}
+            rules)))
   (println))
 
 (defn- render-files [src-dir out-dir files]
@@ -79,13 +93,11 @@
 (defn- once
   "Transform garden files to css once and then exit."
   [src-dir out-dir]
-  (println "Once")
-  (render-files (fs/find-files* src-dir fs/file?)))
+  (render-files src-dir out-dir (fs/find-files* src-dir fs/file?)))
 
 (defn- auto
   "Watch garden files and transform them to css after any changes."
   [src-dir out-dir]
-  (println "Auto")
   (wc/watcher [src-dir]
     (wc/rate 1000)
     (wc/on-change #(render-files src-dir out-dir %))
@@ -113,12 +125,6 @@
      (when (valid-project? project)
       (let [src-dir (get-dir project :source-path)
             out-dir (get-dir project :output-path)]
-       (println src-dir)
-       (println out-dir)
-       (case subtask
-        "once" (once src-dir out-dir)
-        "auto" (auto src-dir out-dir))))))
-
-;;(cssable-from-file "src/garden/main.clj")
-
-
+        (case subtask
+          "once" (once src-dir out-dir)
+          "auto" (auto src-dir out-dir))))))
