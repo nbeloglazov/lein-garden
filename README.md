@@ -1,6 +1,6 @@
 # garden
 
-A Leiningen plugin for [garden] lib that automatically compiles garden files to css.
+A Leiningen plugin for compiling [garden](https://github.com/noprompt/garden) to css.
 
 ## Install
 
