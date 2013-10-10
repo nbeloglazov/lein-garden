@@ -1,8 +1,8 @@
 # garden
 
-A Leiningen plugin for [garden] lib that automatically compiles garden files to css.
+A Leiningen plugin for compiling [garden](https://github.com/noprompt/garden) to css.
 
-## Usage
+## Install
 
 Add lein-garden to plugins section in `project.clj`:
 
@@ -16,6 +16,13 @@ Add garden config to `project.clj`:
 :garden {:source-path "src/garden"
            :output-path "resources/css"}
 ```
+
+### Usage
+
+lein-garden provides 2 tasks: 
+
+* `lein garden once` - compiles garden files to css once
+* `lein garden auto` - compiles garden files to css on every change
 
 ## File format
 
